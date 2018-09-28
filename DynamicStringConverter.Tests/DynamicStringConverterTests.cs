@@ -9,9 +9,15 @@ using System.Globalization;
 
 namespace DynamicStringConverter.Tests
 {
+    /// <summary>
+    /// dynamic string converter tests
+    /// </summary>
     [TestClass]
     public class DynamicStringConverterTests
     {
+        /// <summary>
+        /// simple dyn text
+        /// </summary>
         [TestMethod]
         public void Simpledyntest()
         {
@@ -24,6 +30,36 @@ namespace DynamicStringConverter.Tests
         }
 
 
+        /// <summary>
+        /// test casting for what it's worth
+        /// </summary>
+        [TestMethod]
+        public void Castertest()
+        {
+            var numbers = Enumerable.Range(0, 5000);
+            var pairs = numbers.ToDictionary(x => "K" + x.ToString(), x => x.ToString());
+            dynamic ds = new DynamicStrings(pairs);
+            var coo = (int)ds.K999;
+            Assert.AreEqual(999, coo);
+
+            IDictionary<string, string> id = ds;
+            DynamicStrings dss = ds;
+
+            Assert.IsTrue(id.ContainsKey("K111"), "we should have had key 111");
+            Assert.ThrowsException<NotSupportedException>(() =>
+            {
+                //we don't support mutability etc.
+                id.Add("somekey", "someval");
+            });
+
+            var memnames = dss.GetDynamicMemberNames().ToDictionary(x => x, x => true);
+            Assert.AreEqual(pairs.Count, memnames.Count, "count of GetDynamicMemberNames");
+        }
+
+        /// <summary>
+        /// test various types
+        /// includes DateTimeOffsetConverter special case
+        /// </summary>
         [TestMethod]
         public void Multidyntest()
         {
@@ -36,7 +72,9 @@ namespace DynamicStringConverter.Tests
                 ["Somestring"] = "yes just a string",
                 ["Somedate"] = utcnow.ToString("o"),
                 ["Somedto"] = dto.ToString(),
-                ["Somebool"] = "TruE"
+                ["Somebool"] = "TruE",
+                ["Somenull"] = null,
+                ["Anotherint"] = "123"
             };
 
             dynamic ds = new DynamicStrings(pairs,
@@ -50,13 +88,22 @@ namespace DynamicStringConverter.Tests
             var somedate = ((DateTime)(ds.Somedate)).ToUniversalTime();
             DateTimeOffset somedto = ds.Somedto;
             bool somebool = ds.Somebool;
+            object somenull = ds.Somenull;
 
+            //Nullables currently NOT supported\\
+            //int? anotherint = ds.Anotherint;  //Nullable test; non null case
+            //int? anothernull = ds.Somenull; //nullable. null case
 
             Assert.AreEqual(123456789, someint);
             Assert.AreEqual("yes just a string", somestring);
             Assert.AreEqual(utcnow, somedate);
             Assert.IsTrue(Math.Abs((dto - somedto).TotalMilliseconds) < 2000, "was expecting dto and somedto essentially the same");
             Assert.AreEqual(true, somebool);
+            Assert.IsNull(somenull, "somenull");
+
+            //Nullables currently NOT supported\\
+            //Assert.AreEqual(123, anotherint);
+            //Assert.IsNull(anothernull, "anothernull");
         }
 
         [TestMethod]

@@ -12,7 +12,7 @@ namespace DynamicStringConverter
     /// dynamic string with magic conversion helper
     /// uses Convert.ChangeType or supplied converter
     /// </summary>
-    internal class DynamicString : DynamicObject
+    internal class DynamicString : DynamicObject, IConvertible
     {
         /// <summary>
         /// internal rep
@@ -27,12 +27,17 @@ namespace DynamicStringConverter
         /// <summary>
         /// cons
         /// </summary>
-        /// <param name="str"></param>
+        /// <param name="str">string must not be null</param>
         /// <param name="tc">custom type converter; if supplied, we will try these converters prior to trying Convert.ChangeType, in order supplied.
         /// Supplied converters must support converting FROM string, for proper functionality.
         /// </param>
         public DynamicString(string str, ReadOnlyCollection<TypeConverter> tc = null)
         {
+            if (str == null)
+            {
+                throw new ArgumentNullException("str");
+            }
+
             Str = str;
             CustomTypeConverters = tc;
         }
@@ -78,6 +83,13 @@ namespace DynamicStringConverter
         /// <returns></returns>
         public override bool TryConvert(ConvertBinder binder, out object result)
         {
+            //Null means null.
+            if (Str == null)
+            {
+                result = null;
+                return true;
+            }
+
             //attempt using a custom converter if destination type doesn't have a specific TypeCode, and we appear to have an appropriate converter
             if (Type.GetTypeCode(binder.Type) == TypeCode.Object)
             {
@@ -101,7 +113,7 @@ namespace DynamicStringConverter
         /// <returns></returns>
         public override string ToString()
         {
-            return Str?.ToString();
+            return Str.ToString();
         }
 
         /// <summary>
@@ -116,25 +128,20 @@ namespace DynamicStringConverter
         /// <returns></returns>
         public override bool Equals(object obj)
         {
-            //type check. If not null but not a valid type, equality is false
-            var othertype = obj?.GetType();
-            if (othertype != null && !eqtypes.Any(x => x.IsAssignableFrom(x)))
+            if (obj == null)
+            {
+                return false;  //We can't possibly be null.
+            }
+
+            //type check. 
+            var othertype = obj.GetType();
+            if (othertype != null && !eqtypes.Any(x => x.IsAssignableFrom(othertype)))
             {
                 return false;
             }
 
-            //string check; unusual logic here in an attempt to achieve useful string semantics
-            var otherstring = obj?.ToString();
-            if (otherstring == null)
-            {
-                //if the "other" object is null, and the wrapped string (Str) is null, we consider this EQUAL!
-                return Str == null;
-            }
-            else
-            {
-                //regular string equality check here. note we are calling STRING.Equals here
-                return otherstring.Equals(Str);
-            }
+            //regular string equality check here. note we are calling STRING.Equals here
+            return obj.ToString().Equals(Str);
         }
 
         /// <summary>
@@ -143,7 +150,95 @@ namespace DynamicStringConverter
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return Str?.GetHashCode() ?? 0; //null gets a zero hash.
+            return Str.GetHashCode(); 
         }
+
+
+        #region Auto implement via Str
+        public TypeCode GetTypeCode()
+        {
+            return Str.GetTypeCode();
+        }
+
+        public bool ToBoolean(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToBoolean(provider);
+        }
+
+        public byte ToByte(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToByte(provider);
+        }
+
+        public char ToChar(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToChar(provider);
+        }
+
+        public DateTime ToDateTime(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToDateTime(provider);
+        }
+
+        public decimal ToDecimal(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToDecimal(provider);
+        }
+
+        public double ToDouble(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToDouble(provider);
+        }
+
+        public short ToInt16(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToInt16(provider);
+        }
+
+        public int ToInt32(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToInt32(provider);
+        }
+
+        public long ToInt64(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToInt64(provider);
+        }
+
+        public sbyte ToSByte(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToSByte(provider);
+        }
+
+        public float ToSingle(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToSingle(provider);
+        }
+
+        public string ToString(IFormatProvider provider)
+        {
+            return Str.ToString(provider);
+        }
+
+        public object ToType(Type conversionType, IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToType(conversionType, provider);
+        }
+
+        public ushort ToUInt16(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToUInt16(provider);
+        }
+
+        public uint ToUInt32(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToUInt32(provider);
+        }
+
+        public ulong ToUInt64(IFormatProvider provider)
+        {
+            return ((IConvertible)Str).ToUInt64(provider);
+        }
+        #endregion
     }
 }
