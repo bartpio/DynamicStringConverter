@@ -36,10 +36,11 @@ namespace DynamicStringConverter
         /// cons, given enumerable
         /// </summary>
         /// <param name="strings"></param>
+        /// <param name="dso">conversion options</param>
         /// <param name="tc">custom type converter; if supplied, we will try these converters prior to trying Convert.ChangeType, in order supplied.
         /// Supplied converters must support converting FROM string. Any converters not supporting this will be ignored.
         /// </param>
-        public DynamicStrings(IEnumerable<KeyValuePair<string, string>> strings, IEqualityComparer<string> comparer = null, IEnumerable<TypeConverter> tc = null)
+        public DynamicStrings(IEnumerable<KeyValuePair<string, string>> strings, IEqualityComparer<string> comparer = null, DynamicStringOptions dso = DynamicStringOptions.None, IEnumerable<TypeConverter> tc = null)
         {
             if (strings == null)
             {
@@ -49,7 +50,7 @@ namespace DynamicStringConverter
             comparer = comparer ?? StringComparer.OrdinalIgnoreCase;
             CustomTypeConverters = tc?.Where(x => x.CanConvertFrom(typeof(string))).ToList().AsReadOnly();
             //for nulls the val will be direct null.
-            Map = new ReadOnlyDictionary<string, DynamicString>(strings.ToDictionary(x => x.Key, x => x.Value != null ? new DynamicString(x.Value, CustomTypeConverters) : null, comparer));
+            Map = new ReadOnlyDictionary<string, DynamicString>(strings.ToDictionary(x => x.Key, x => x.Value != null ? new DynamicString(x.Value, dso, CustomTypeConverters) : null, comparer));
         }
 
         /// <summary>
@@ -60,7 +61,7 @@ namespace DynamicStringConverter
         /// Supplied converters must support converting FROM string. Any converters not supporting this will be ignored.
         /// </param>
         public DynamicStrings(IEnumerable<(string, string)> strings, IEqualityComparer<string> comparer = null, IEnumerable<TypeConverter> tc = null) 
-            : this(AssertValid(strings).Select(x => new KeyValuePair<string, string>(x.Item1, x.Item2)), comparer, tc)
+            : this(AssertValid(strings).Select(x => new KeyValuePair<string, string>(x.Item1, x.Item2)), comparer, DynamicStringOptions.None, tc)
         {
         }
 
