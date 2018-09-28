@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Collections.Generic;
 using System;
 using System.Globalization;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace DynamicStringConverter.Tests
 {
@@ -22,7 +23,7 @@ namespace DynamicStringConverter.Tests
         public void Simpledyntest()
         {
             var numbers = Enumerable.Range(0, 5000);
-            var pairs = numbers.ToDictionary(x => "K" + x.ToString(), x =>  x.ToString());
+            var pairs = numbers.ToDictionary(x => "K" + x.ToString(), x => x.ToString());
             dynamic ds = new DynamicStrings(pairs);
             var coo = (int)ds.K999;
             Assert.IsTrue(coo.GetType() == typeof(int));  //A needless tautology
@@ -79,6 +80,7 @@ namespace DynamicStringConverter.Tests
 
             dynamic ds = new DynamicStrings(pairs,
                 StringComparer.OrdinalIgnoreCase,  //let's ignore case
+                DynamicStringOptions.None,
                 new TypeConverter[] { new DateTimeOffsetConverter() }); //datetimeoffset seems to need an explicit converter
 
 
@@ -106,6 +108,9 @@ namespace DynamicStringConverter.Tests
             //Assert.IsNull(anothernull, "anothernull");
         }
 
+        /// <summary>
+        /// custom converter
+        /// </summary>
         [TestMethod]
         public void Customconvtest()
         {
@@ -114,13 +119,56 @@ namespace DynamicStringConverter.Tests
             var numbers = Enumerable.Range(0, 5000);
             //evens are normal, odds get an odd CUSTOM! prefix on the value portion
             var pairs = numbers.ToDictionary(x => "K" + x.ToString(), x => ((x % 2 == 0) ? "" : "CUSTOM!") + x.ToString());
-            dynamic ds = new DynamicStrings(pairs, null, new TypeConverter[] { cust });
+            dynamic ds = new DynamicStrings(pairs, null, DynamicStringOptions.None, new TypeConverter[] { cust });
             var coo = (SampleCustomType)ds.K999;
             Assert.AreEqual("CUSTOM!999", coo.Somestring);
 
 
             var smally = (short)ds.K888;
             Assert.AreEqual(888, smally);
+        }
+
+        /// <summary>
+        /// test of emptystr
+        /// </summary>
+        [TestMethod]
+        public void TestOfEmptiness()
+        {
+
+            var pairs = new Dictionary<string, string>()
+            {
+                ["Nothing"] = ""
+            };
+
+            //e2d empty to default
+            dynamic ds_e2d = new DynamicStrings(pairs,
+                StringComparer.OrdinalIgnoreCase,  //let's ignore case
+                DynamicStringOptions.EmptyStringMeansDefault);
+
+            //baseline case: cast of empty to most things should fail
+            dynamic ds_none = new DynamicStrings(pairs,
+                StringComparer.OrdinalIgnoreCase,  //let's ignore case
+                DynamicStringOptions.None);
+
+
+
+            //autoforce to default here
+            Assert.AreEqual(0, (int)ds_e2d.Nothing);
+
+            //here we're not forcing; expect bad format
+            Assert.ThrowsException<FormatException>(() =>
+            {
+                int shouldfail = ds_none.Nothing;
+            });
+
+            //empty string to string is actually OK
+            Assert.AreEqual(String.Empty, (string)ds_none.Nothing);
+
+            //for good measure we try a property that's not even there
+            Assert.ThrowsException<RuntimeBinderException>(() =>
+            {
+                int shouldfailagain = ds_none.NotEvenHere;
+            });
         }
     }
 }

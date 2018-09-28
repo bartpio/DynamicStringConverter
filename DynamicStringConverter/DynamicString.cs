@@ -20,6 +20,11 @@ namespace DynamicStringConverter
         private string Str { get;  }
 
         /// <summary>
+        /// dynstring options
+        /// </summary>
+        private DynamicStringOptions Opts { get; }
+
+        /// <summary>
         /// optional custom type conv
         /// </summary>
         private ReadOnlyCollection<TypeConverter> CustomTypeConverters { get; }
@@ -28,10 +33,11 @@ namespace DynamicStringConverter
         /// cons
         /// </summary>
         /// <param name="str">string must not be null</param>
+        /// <param name="opts">options</param>
         /// <param name="tc">custom type converter; if supplied, we will try these converters prior to trying Convert.ChangeType, in order supplied.
         /// Supplied converters must support converting FROM string, for proper functionality.
         /// </param>
-        public DynamicString(string str, ReadOnlyCollection<TypeConverter> tc = null)
+        public DynamicString(string str, DynamicStringOptions opts, ReadOnlyCollection<TypeConverter> tc = null)
         {
             if (str == null)
             {
@@ -39,6 +45,7 @@ namespace DynamicStringConverter
             }
 
             Str = str;
+            Opts = opts;
             CustomTypeConverters = tc;
         }
 
@@ -86,8 +93,7 @@ namespace DynamicStringConverter
             //Null means null.
             if (Str == null)
             {
-                result = null;
-                return true;
+                throw new InvalidOperationException("Runtime assert failed; Str cannot be null"); //This cannot happen.
             }
 
             //attempt using a custom converter if destination type doesn't have a specific TypeCode, and we appear to have an appropriate converter
@@ -102,10 +108,35 @@ namespace DynamicStringConverter
                 }
             }
 
+            //Special case for emptystr if so configured!
+            if (Opts.HasFlag(DynamicStringOptions.EmptyStringMeansDefault) && Str == String.Empty && !typeof(string).IsAssignableFrom(binder.Type))
+            {
+                result = GetDefaultValue(binder.Type);
+                return true;
+            }
+
             //Typical case where we use Convert.ChangeType
             result = Convert.ChangeType(Str, binder.Type);
             return true;
         }
+
+        /// <summary>
+        /// pull dflt value of a type at runtime.
+        /// </summary>
+        /// <param name="t"></param>
+        /// <returns></returns>
+        private static object GetDefaultValue(Type t)
+        {
+            if (t.IsValueType)
+            {
+                return Activator.CreateInstance(t);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
 
         /// <summary>
         /// to str
